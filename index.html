@@ -1,0 +1,348 @@
+import React, { useState, useEffect } from 'react';
+import { Trophy, Star, Music, RotateCcw, X, Check } from 'lucide-react';
+
+const RetroPokeGame = () => {
+  // 遊戲狀態
+  const [pokedStatus, setPokedStatus] = useState(Array(16).fill(false));
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+
+  // 16個懷舊題目數據
+  const questions = [
+    {
+      id: 1,
+      category: "生活",
+      title: "廚房的好幫手",
+      question: "以前家家戶戶廚房裡都有一個「耐用幾十年」的電器，煮飯燉湯都靠它，顏色通常是紅色或綠色，請問是？",
+      options: ["大同電鍋", "微波爐", "氣炸鍋"],
+      answer: "大同電鍋",
+      fact: "回憶：民國49年開始生產，留學生出國一定要帶一個，真的很耐用！"
+    },
+    {
+      id: 2,
+      category: "人物",
+      title: "永遠的軍中情人",
+      question: "有一位女歌手，歌聲甜美，唱紅了《甜蜜蜜》、《小城故事》，被稱為「軍中情人」，她是誰？",
+      options: ["鳳飛飛", "鄧麗君", "蔡琴"],
+      answer: "鄧麗君",
+      fact: "回憶：她的歌聲撫慰了無數人的心，連對岸都流行「白天聽老鄧，晚上聽小鄧」。"
+    },
+    {
+      id: 3,
+      category: "電視",
+      title: "一個燈、兩個燈...",
+      question: "台灣電視史上最長壽的歌唱比賽節目，主持人是田邊俱樂部，口號是「一個燈、兩個燈...」，這是哪個節目？",
+      options: ["五燈獎", "群星會", "龍兄虎弟"],
+      answer: "五燈獎",
+      fact: "回憶：五度五關獎五萬！張惠妹也是這個節目出來的喔。"
+    },
+    {
+      id: 4,
+      category: "零食",
+      title: "乖乖聽話",
+      question: "有一種零食，裡面會送小玩具或漫畫書，綠色包裝是奶油椰子口味，工程師常會放在機器上保平安，這是？",
+      options: ["蝦味先", "乖乖", "孔雀香酥脆"],
+      answer: "乖乖",
+      fact: "回憶：以前最期待打開裡面送的小汽車或貼紙！"
+    },
+    {
+      id: 5,
+      category: "體育",
+      title: "棒球的驕傲",
+      question: "民國57年，來自台東的一支少棒隊，用石頭和木棍練球，最後擊敗了日本隊，掀起全台棒球熱，這支球隊是？",
+      options: ["紅葉少棒", "巨人少棒", "金龍少棒"],
+      answer: "紅葉少棒",
+      fact: "回憶：那時候全家半夜守著收音機或是黑白電視看轉播，真的很熱血！"
+    },
+    {
+      id: 6,
+      category: "人物",
+      title: "歌仔戲天王",
+      question: "每天傍晚吃飯時間，電視都要看她的歌仔戲，她反串小生英俊瀟灑，被稱為「歌仔戲皇帝」，她是？",
+      options: ["葉青", "楊麗花", "黃香蓮"],
+      answer: "楊麗花",
+      fact: "回憶：楊麗花歌仔戲是大家吃飯配電視的共同回憶，統帥千軍萬馬超威風。"
+    },
+    {
+      id: 7,
+      category: "交通",
+      title: "耐操好擋",
+      question: "以前送瓦斯、載貨最愛用的擋車，引擎聲很有特色，廣告詞說「耐操好擋拼第一」，這是哪台車？",
+      options: ["偉士牌", "野狼125", "達可達"],
+      answer: "野狼125",
+      fact: "回憶：三陽野狼125，真的是台灣經濟起飛時期的功臣。"
+    },
+    {
+      id: 8,
+      category: "動物",
+      title: "動物園的大明星",
+      question: "從圓山動物園搬家到木柵動物園，所有小朋友最愛的大象爺爺，也是曾參加過二戰的戰象，牠的名字是？",
+      options: ["馬蘭", "林旺", "阿河"],
+      answer: "林旺",
+      fact: "回憶：林旺爺爺活了86歲，是好多代台灣人的共同朋友。"
+    },
+    {
+      id: 9,
+      category: "藥品",
+      title: "綠色的味道",
+      question: "肚子痛、被蚊子叮都要擦，廣告歌唱著「哥哥爸爸真偉大，名譽照我家...」，這是什麼藥？",
+      options: ["萬金油", "綠油精", "白花油"],
+      answer: "綠油精",
+      fact: "回憶：這首歌每個人都會唱！小小一瓶隨身攜帶很方便。"
+    },
+    {
+      id: 10,
+      category: "生活",
+      title: "致富的夢想",
+      question: "以前每個月開獎，大家會去買來對獎，上面印有忠孝節義故事，目的是為了「反共抗俄」，這是什麼？",
+      options: ["愛國獎券", "大家樂", "刮刮樂"],
+      answer: "愛國獎券",
+      fact: "回憶：尤其是尾數對中也有獎，每到開獎日街上都在賣。"
+    },
+    {
+      id: 11,
+      category: "戲劇",
+      title: "遊俠兒",
+      question: "「千山我獨行，不必相送...」鄭少秋主演的這部港劇，當年播出時造成萬人空巷，大家都不出門，它是？",
+      options: ["楚留香", "射鵰英雄傳", "包青天"],
+      answer: "楚留香",
+      fact: "回憶：當時真的很誇張，計程車司機為了看電視都不載客了。"
+    },
+    {
+      id: 12,
+      category: "人物",
+      title: "帽子歌后",
+      question: "這位女歌星每次上台都會戴不一樣的帽子，動作帥氣，唱紅了《掌聲響起》、《祝你幸福》，她是？",
+      options: ["鳳飛飛", "甄妮", "崔苔菁"],
+      answer: "鳳飛飛",
+      fact: "回憶：鳳姐的親和力十足，是台灣人心目中永遠的國民天后。"
+    },
+    {
+      id: 13,
+      category: "電影",
+      title: "梁兄哥",
+      question: "民國52年這部黃梅調電影上映，凌波反串男主角，造成台北變成「瘋人城」，這是哪部電影？",
+      options: ["江山美人", "梁山伯與祝英台", "紅樓夢"],
+      answer: "梁山伯與祝英台",
+      fact: "回憶：很多人看了十幾遍，這首「遠山含笑」大家都會哼。"
+    },
+    {
+      id: 14,
+      category: "飲料",
+      title: "媽媽的味道",
+      question: "以前有一種乳酸飲料，都是「媽媽」騎著腳踏車挨家挨戶送，小小一瓶酸酸甜甜，是什麼？",
+      options: ["養樂多", "津津蘆筍汁", "蜜豆奶"],
+      answer: "養樂多",
+      fact: "回憶：那時候還有蘋果口味的，是小朋友最期待的點心。"
+    },
+    {
+      id: 15,
+      category: "地點",
+      title: "台北的地標",
+      question: "以前台北西門町有八棟連在一起的三層樓商場，買制服、買音響、吃點心都要去那裡，後來拆掉了，那是？",
+      options: ["光華商場", "中華商場", "萬年大樓"],
+      answer: "中華商場",
+      fact: "回憶：那是台北最繁華的地方，有霓虹燈塔，還有好吃的鍋貼。"
+    },
+    {
+      id: 16,
+      category: "戲劇",
+      title: "開封有個...",
+      question: "民國82年這部戲紅遍全台，主題曲是「開封有個...鐵面無私辨忠奸」，這是哪位大人？",
+      options: ["包青天", "劉伯溫", "施公"],
+      answer: "包青天",
+      fact: "回憶：包大人的黑臉和月亮標誌，還有展昭的輕功，大家都愛看。"
+    }
+  ];
+
+  // 處理戳洞邏輯
+  const handlePoke = (index) => {
+    if (pokedStatus[index]) return; // 已經戳過了
+
+    const newStatus = [...pokedStatus];
+    newStatus[index] = true;
+    setPokedStatus(newStatus);
+    
+    // 延遲一下讓動畫跑完再顯示題目
+    setTimeout(() => {
+      setCurrentQuestion(questions.find(q => q.id === index + 1));
+    }, 400);
+  };
+
+  // 處理回答邏輯
+  const handleAnswer = (option) => {
+    const correct = option === currentQuestion.answer;
+    setIsCorrect(correct);
+    if (correct) {
+      setFeedbackMsg(`答對了！\n${currentQuestion.fact}`);
+    } else {
+      setFeedbackMsg(`哎呀，差一點點！\n答案是：${currentQuestion.answer}\n${currentQuestion.fact}`);
+    }
+    setShowResult(true);
+  };
+
+  // 關閉結果視窗
+  const closeResult = () => {
+    setShowResult(false);
+    setCurrentQuestion(null);
+  };
+
+  // 重置遊戲
+  const resetGame = () => {
+    if(window.confirm("確定要重新將所有洞補起來嗎？")) {
+      setPokedStatus(Array(16).fill(false));
+      setCurrentQuestion(null);
+      setShowResult(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-amber-50 font-sans flex flex-col items-center py-6 px-4">
+      {/* 標題區 */}
+      <header className="text-center mb-6">
+        <h1 className="text-4xl md:text-5xl font-bold text-red-800 mb-2 tracking-wider drop-shadow-sm border-b-4 border-red-800 pb-2 inline-block">
+          懷舊時光戳戳樂
+        </h1>
+        <p className="text-gray-600 text-lg mt-2 font-medium">
+          一起回味 1949-1990 的台灣經典故事
+        </p>
+      </header>
+
+      {/* 戳戳樂主體 - 模擬傳統盒子 */}
+      <div className="relative bg-red-700 p-4 rounded-xl shadow-2xl border-4 border-yellow-500 max-w-2xl w-full">
+        {/* 裝飾線條 */}
+        <div className="absolute top-0 left-0 w-full h-full border-2 border-dashed border-yellow-200 pointer-events-none rounded-lg m-1 opacity-50"></div>
+
+        <div className="grid grid-cols-4 gap-2 md:gap-4 relative z-10">
+          {questions.map((q, index) => (
+            <div 
+              key={q.id}
+              onClick={() => handlePoke(index)}
+              className={`
+                aspect-square relative rounded-lg cursor-pointer transform transition-all duration-300
+                ${pokedStatus[index] ? 'bg-gray-900 shadow-inner' : 'bg-red-500 hover:bg-red-400 shadow-[0_4px_0_rgb(153,27,27)] active:shadow-none active:translate-y-1'}
+                flex items-center justify-center border-2 border-yellow-200
+              `}
+            >
+              {pokedStatus[index] ? (
+                // 戳破後的狀態
+                <div className="text-center animate-bounce">
+                  <span className="text-yellow-400 text-2xl md:text-3xl font-bold">
+                    {q.id}
+                  </span>
+                  <div className="text-xs text-gray-400">已兌換</div>
+                </div>
+              ) : (
+                // 未戳破的狀態
+                <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden group">
+                  {/* 紙張紋理效果 */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.2)_1px,transparent_1px)] bg-[length:10px_10px] opacity-30"></div>
+                  
+                  {/* 中央文字 */}
+                  <div className="bg-white w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                    <span className="text-red-700 font-black text-xl md:text-2xl">戳</span>
+                  </div>
+                  <div className="mt-1 text-yellow-100 text-xs md:text-sm font-medium tracking-widest">
+                    第 {q.id} 格
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 底部控制區 */}
+      <div className="mt-8">
+        <button 
+          onClick={resetGame}
+          className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors shadow-lg font-bold text-lg"
+        >
+          <RotateCcw size={20} />
+          重新開始
+        </button>
+      </div>
+
+      {/* 問題視窗 (Modal) */}
+      {currentQuestion && !showResult && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl relative">
+            {/* 卡片頂部 */}
+            <div className="bg-red-600 p-4 text-white text-center relative">
+              <div className="absolute top-3 right-3 text-white/50 text-6xl font-black -rotate-12 select-none pointer-events-none">
+                {currentQuestion.id}
+              </div>
+              <span className="inline-block px-3 py-1 bg-yellow-400 text-red-900 rounded-full text-sm font-bold mb-2 shadow-sm">
+                {currentQuestion.category}
+              </span>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-wide">
+                {currentQuestion.title}
+              </h2>
+            </div>
+
+            {/* 問題內容 */}
+            <div className="p-6 md:p-8">
+              <p className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed mb-8">
+                {currentQuestion.question}
+              </p>
+
+              {/* 選項按鈕 */}
+              <div className="space-y-3">
+                {currentQuestion.options.map((option, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(option)}
+                    className="w-full text-left px-6 py-4 text-lg md:text-xl font-bold text-gray-700 bg-gray-100 hover:bg-blue-100 hover:text-blue-800 rounded-xl transition-all border-2 border-transparent hover:border-blue-300 active:scale-95"
+                  >
+                    {idx + 1}. {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 結果視窗 (Modal) */}
+      {showResult && currentQuestion && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className={`p-6 text-center ${isCorrect ? 'bg-green-100' : 'bg-red-50'}`}>
+              <div className="mb-4 inline-flex items-center justify-center w-20 h-20 rounded-full bg-white shadow-md">
+                {isCorrect ? (
+                  <Trophy size={48} className="text-yellow-500" />
+                ) : (
+                  <X size={48} className="text-red-500" />
+                )}
+              </div>
+              
+              <h3 className={`text-3xl font-bold mb-2 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                {isCorrect ? '答對了！太厲害！' : '哎呀！沒關係'}
+              </h3>
+            </div>
+
+            <div className="p-6 md:p-8">
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r">
+                <p className="text-xl text-gray-800 font-medium whitespace-pre-line leading-relaxed">
+                  {feedbackMsg}
+                </p>
+              </div>
+
+              <button 
+                onClick={closeResult}
+                className="w-full py-4 bg-red-600 text-white rounded-xl text-xl font-bold hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+              >
+                <Check size={24} />
+                繼續戳下一個
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RetroPokeGame;
