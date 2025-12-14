@@ -1,400 +1,924 @@
-<!DOCTYPE html>
-<index.html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>懷舊時光機：16格戳戳樂</title>
-    <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 React 和 ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- 引入 Babel 用於解析 JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+import React, { useState, useEffect, useRef } from 'react';
+import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Trophy, Users, Activity, Brain, Smile, Music, Star, RotateCcw, ArrowRight, ArrowDown, ArrowLeft, ArrowUp, Heart, Sun, Coffee, Volume2, Hand, Palette, Sparkles, Loader2, Zap, Wand2, Edit3, Check, Magnet, Shield, Gift, ThumbsUp } from 'lucide-react';
 
-    <style>
-        body {
-            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
-            touch-action: manipulation; /* 優化觸控操作 */
+// --- Gemini API 設定 ---
+const apiKey = ""; // 執行環境會自動填入 API Key
+
+// --- 鼓勵話語清單 ---
+const ENCOURAGING_PHRASES = [
+  "太棒了！",
+  "做得好！",
+  "真厲害！",
+  "活力滿滿！",
+  "給您拍拍手！",
+  "就是這樣！",
+  "太優秀了！",
+  "好樣的！"
+];
+
+// --- 懷舊配色與資料設定 ---
+
+// 棋盤格子資料 (22格)
+const BOARD_DATA = [
+  // 上排 (左 -> 右)
+  { id: 0, type: 'start', title: '起點', desc: '準備出發！', color: 'bg-amber-200', border: 'border-amber-600', points: 0, icon: <Star size={20} />, emoji: '🚩' },
+  { id: 1, type: 'exercise', title: '摘蘋果', desc: '雙手向上伸展，左抓一下、右抓一下，共做10下！', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '🍎' },
+  { id: 2, type: 'brain', title: '動動腦', desc: '請問大家：你最喜歡的水果是什麼？請3位回答。', color: 'bg-slate-200', border: 'border-slate-400', points: 10, icon: <Brain size={20} />, emoji: '🥣' },
+  { id: 3, type: 'fun', title: '給個讚', desc: '轉頭跟旁邊的夥伴比個「讚」，大聲說「你好棒」！', color: 'bg-emerald-100', border: 'border-emerald-500', points: 5, icon: <Smile size={20} />, emoji: '👍' },
+  { id: 4, type: 'exercise', title: '踏步走', desc: '坐在椅子上，原地踏步數20下，手也要擺動喔！', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '👞' },
+  { id: 5, type: 'exercise', title: '聳聳肩', desc: '肩膀用力縮起來～再放鬆掉下來，做10次放鬆肩膀。', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '🤷' },
+  { id: 6, type: 'chance', title: '機會', desc: '這組最有精神嗎？老師覺得是的話加 20 分！', color: 'bg-orange-100', border: 'border-orange-500', points: 20, icon: <Sun size={20} />, emoji: '🎁' },
+  { id: 7, type: 'song', title: '懷舊曲', desc: '一起唱一段「望春風」或「甜蜜蜜」！', color: 'bg-indigo-100', border: 'border-indigo-400', points: 15, icon: <Music size={20} />, emoji: '🎵' },
+  
+  // 右排 (上 -> 下)
+  { id: 8, type: 'brain', title: '水果點名', desc: '請全組一起說出 3 種「紅色的水果」！', color: 'bg-slate-200', border: 'border-slate-400', points: 15, icon: <Brain size={20} />, emoji: '🍉' },
+  { id: 9, type: 'exercise', title: '轉脖子', desc: '頭慢慢轉向左邊，再轉向右邊，放鬆脖子，做5次。', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '😌' },
+  { id: 10, type: 'brain', title: '算數', desc: '10 隻手指頭，減掉 3 隻，還剩幾隻？', color: 'bg-slate-200', border: 'border-slate-400', points: 15, icon: <Brain size={20} />, emoji: '🖐️' },
+  
+  // 下排 (右 -> 左)
+  { id: 11, type: 'exercise', title: '彈鋼琴', desc: '手指頭動一動，像在彈鋼琴或是打字，動30秒！', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Hand size={20} />, emoji: '🎹' },
+  { id: 12, type: 'rest', title: '喝茶趣', desc: '深呼吸放鬆～休息一回合(但在原地加5分)。', color: 'bg-stone-200', border: 'border-stone-500', points: 5, icon: <Coffee size={20} />, emoji: '🍵' },
+  { id: 13, type: 'exercise', title: '抱大樹', desc: '雙手打開像擁抱大樹，做擴胸運動10下！', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '🌳' },
+  { id: 14, type: 'fun', title: '大笑', desc: '全組一起大聲「哈！哈！哈！」三聲，把煩惱笑出來！', color: 'bg-emerald-100', border: 'border-emerald-500', points: 10, icon: <Smile size={20} />, emoji: '😆' },
+  { id: 15, type: 'exercise', title: '抬膝蓋', desc: '坐穩了，左腳抬起來、右腳抬起來，像在走路，做20下。', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '🦵' },
+  { id: 16, type: 'exercise', title: '轉手腕', desc: '雙手握拳轉手腕，順時針10圈，逆時針10圈。', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Activity size={20} />, emoji: '✊' },
+  { id: 17, type: 'brain', title: '猜拳', desc: '跟老師猜拳，贏的人舉手！', color: 'bg-slate-200', border: 'border-slate-400', points: 15, icon: <Brain size={20} />, emoji: '✌️' },
+  { id: 18, type: 'exercise', title: '抓抓樂', desc: '手掌用力張開，再用力握拳，反覆做10次，促進血液循環。', color: 'bg-rose-100', border: 'border-rose-400', points: 10, icon: <Hand size={20} />, emoji: '👐' },
+
+  // 左排 (下 -> 上)
+  { id: 19, type: 'chance', title: '好運', desc: '直接前進 2 格！(並執行那格任務)', color: 'bg-orange-100', border: 'border-orange-500', points: 0, icon: <Heart size={20} />, emoji: '🍀' },
+  { id: 20, type: 'song', title: '接歌', desc: '老師唱一句，該組接下一句！', color: 'bg-indigo-100', border: 'border-indigo-400', points: 15, icon: <Music size={20} />, emoji: '🎤' },
+  { id: 21, type: 'brain', title: '顏色題', desc: '找找看，今天誰的身上有「紅色」的東西？', color: 'bg-slate-200', border: 'border-slate-400', points: 15, icon: <Palette size={20} />, emoji: '🎨' },
+];
+
+const DEFAULT_TEAMS = [
+  { name: '紅龜粿', emoji: '🐢', bg: 'bg-red-500', text: 'text-white', border: 'border-red-700' },
+  { name: '藍白拖', emoji: '🩴', bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-700' },
+  { name: '綠郵筒', emoji: '📮', bg: 'bg-green-500', text: 'text-white', border: 'border-green-700' },
+  { name: '旺來隊', emoji: '🍍', bg: 'bg-yellow-400', text: 'text-black', border: 'border-yellow-600' },
+];
+
+// 格子在 8x5 Grid 中的位置設定 (順時針繞圈)
+const TILE_POSITIONS = [
+  // Top Row (0-7)
+  { col: 1, row: 1 }, { col: 2, row: 1 }, { col: 3, row: 1 }, { col: 4, row: 1 }, 
+  { col: 5, row: 1 }, { col: 6, row: 1 }, { col: 7, row: 1 }, { col: 8, row: 1 },
+  // Right Column (8-10)
+  { col: 8, row: 2 }, { col: 8, row: 3 }, { col: 8, row: 4 },
+  // Bottom Row (11-18)
+  { col: 8, row: 5 }, { col: 7, row: 5 }, { col: 6, row: 5 }, { col: 5, row: 5 },
+  { col: 4, row: 5 }, { col: 3, row: 5 }, { col: 2, row: 5 }, { col: 1, row: 5 },
+  // Left Column (19-21)
+  { col: 1, row: 4 }, { col: 1, row: 3 }, { col: 1, row: 2 }
+];
+
+const DiceIcon = ({ value }) => {
+  const size = 64; 
+  switch (value) {
+    case 1: return <Dice1 size={size} />;
+    case 2: return <Dice2 size={size} />;
+    case 3: return <Dice3 size={size} />;
+    case 4: return <Dice4 size={size} />;
+    case 5: return <Dice5 size={size} />;
+    case 6: return <Dice6 size={size} />;
+    default: return <Dice1 size={size} />;
+  }
+};
+
+const App = () => {
+  // Game State: 'setup-count', 'setup-names', 'playing', 'modal', 'winner', 'moving'
+  const [gameState, setGameState] = useState('setup-count');
+  const [teams, setTeams] = useState([]);
+  const [tempTeamNames, setTempTeamNames] = useState([]);
+  const [teamCount, setTeamCount] = useState(2);
+  
+  const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
+  const [diceValue, setDiceValue] = useState(1);
+  const [isRolling, setIsRolling] = useState(false);
+  const [activeTask, setActiveTask] = useState(null);
+  const [winner, setWinner] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [encouragement, setEncouragement] = useState(null); // 鼓勵話語狀態
+  
+  // Card System State
+  const [showCardMenu, setShowCardMenu] = useState(false);
+  // cardTargetMode: null | 'attack' | 'steal'
+  const [cardTargetMode, setCardTargetMode] = useState(null);
+
+  // --- Gemini AI API 呼叫邏輯 ---
+  const callGeminiAPI = async (prompt) => {
+    try {
+      setIsAiLoading(true);
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING" },
+                  desc: { type: "STRING" }
+                }
+              }
+            }
+          }),
         }
-        /* 增加一些紙張紋理的動畫效果 */
-        @keyframes poke-pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(0.9); }
-            100% { transform: scale(1); }
+      );
+      if (!response.ok) throw new Error('API Error');
+      const data = await response.json();
+      return JSON.parse(data.candidates[0].content.parts[0].text);
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      return null;
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const generateAiTask = async (currentTask) => {
+    // 增加隨機風格，讓題目更多變
+    const vibes = ["有趣好笑", "簡單輕鬆", "稍微挑戰", "懷舊溫馨", "充滿活力", "意想不到"];
+    const randomVibe = vibes[Math.floor(Math.random() * vibes.length)];
+
+    let prompt = "";
+    if (currentTask.type === 'exercise') {
+      prompt = `請產生一個適合 65 歲以上長者、可以坐在椅子上完成的簡單肢體運動任務。風格要「${randomVibe}」。請提供一個簡短的「title」(4個字以內) 和詳細但簡單的「desc」(操作步驟)。例如：title: '抬抬腿', desc: '左腳抬起停3秒，換右腳，重複5次。' 請使用繁體中文。`;
+    } else if (currentTask.type === 'brain') {
+      prompt = `請產生一個適合長者的簡單認知或懷舊問答題。風格要「${randomVibe}」。請提供「title」(如：動動腦) 和「desc」(問題內容)。問題要與台灣早期生活、食物、節慶或簡單算術有關。例如：title: '猜謎語', desc: '身穿綠衣裳，肚子紅通通，吐出黑點點，請問是什麼水果？' 請使用繁體中文。`;
+    } else if (currentTask.type === 'song') {
+      prompt = `請產生一個適合長者的唱歌任務。風格要「${randomVibe}」。請提供「title」(如：唱老歌) 和「desc」。內容請指定一首台灣 50-80 年代的經典國語或台語老歌，並要求大家一起唱一小段。例如：title: '月亮代表', desc: '請大家一起唱「月亮代表我的心」的副歌！' 請使用繁體中文。`;
+    } else {
+      prompt = `請產生一個適合長者的簡單互動任務，包含 title 和 desc。風格要「${randomVibe}」。請使用繁體中文。`;
+    }
+    
+    const aiResult = await callGeminiAPI(prompt);
+    if (aiResult) {
+      setActiveTask(prev => ({ ...prev, title: aiResult.title, desc: aiResult.desc }));
+    } else {
+      alert("AI 正在休息中，請稍後再試！");
+    }
+  };
+
+  // --- 音效功能 ---
+
+  const playSound = (type) => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'roll') {
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+        osc.type = 'square';
+        osc.start(now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.stop(now + 0.05);
+      } else if (type === 'step') { // 腳步聲
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.1);
+        osc.type = 'triangle';
+        osc.start(now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.stop(now + 0.1);
+      } else if (type === 'win') {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, index) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.frequency.value = freq;
+          o.type = 'sine';
+          o.start(now + index * 0.1);
+          g.gain.setValueAtTime(0.01, now + index * 0.1);
+          g.gain.linearRampToValueAtTime(0.2, now + index * 0.1 + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, now + index * 0.1 + 0.4);
+          o.stop(now + index * 0.1 + 0.45);
+        });
+      } else if (type === 'applause') {
+        const bufferSize = ctx.sampleRate * 2; 
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * 0.5;
         }
-    </style>
-</head>
-<body class="bg-amber-50">
-    <div id="root"></div>
+        for(let i=0; i<15; i++) {
+           const noise = ctx.createBufferSource();
+           noise.buffer = buffer;
+           const noiseGain = ctx.createGain();
+           noise.connect(noiseGain);
+           noiseGain.connect(ctx.destination);
+           const startTime = now + Math.random() * 1.5;
+           noise.start(startTime);
+           noiseGain.gain.setValueAtTime(0, startTime);
+           noiseGain.gain.linearRampToValueAtTime(0.1, startTime + 0.01);
+           noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+           noise.stop(startTime + 0.15);
+        }
+      } else if (type === 'zap') {
+         osc.frequency.setValueAtTime(400, now);
+         osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+         osc.type = 'sawtooth';
+         osc.start(now);
+         gain.gain.setValueAtTime(0.1, now);
+         gain.gain.linearRampToValueAtTime(0, now + 0.3);
+         osc.stop(now + 0.3);
+      } else if (type === 'magic') {
+         osc.frequency.setValueAtTime(600, now);
+         osc.frequency.linearRampToValueAtTime(1200, now + 0.5);
+         osc.type = 'triangle';
+         osc.start(now);
+         gain.gain.setValueAtTime(0.05, now);
+         gain.gain.linearRampToValueAtTime(0, now + 0.5);
+         osc.stop(now + 0.5);
+      } else if (type === 'shield') {
+         osc.frequency.setValueAtTime(200, now);
+         osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+         osc.type = 'square';
+         osc.start(now);
+         gain.gain.setValueAtTime(0.1, now);
+         gain.gain.linearRampToValueAtTime(0, now + 0.2);
+         osc.stop(now + 0.2);
+      } else if (type === 'steal') {
+         osc.frequency.setValueAtTime(1200, now);
+         osc.frequency.exponentialRampToValueAtTime(400, now + 0.2);
+         osc.type = 'sine';
+         osc.start(now);
+         gain.gain.setValueAtTime(0.1, now);
+         gain.gain.linearRampToValueAtTime(0, now + 0.2);
+         osc.stop(now + 0.2);
+      }
+    } catch (e) {}
+  };
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+  // TTS
+  const speakText = (text) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW'; 
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
 
-        // --- 圖示組件 (使用 SVG) ---
-        const TrophyIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-        );
+  useEffect(() => {
+    if (activeTask && !isAiLoading) {
+      const timer = setTimeout(() => {
+        speakText(`${activeTask.title}。${activeTask.desc}`);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      // Don't cancel speech immediately on task close, 
+      // let encouragement finish if any, handled in completeTask
+      if (!encouragement) {
+          setIsSpeaking(false);
+      }
+    }
+  }, [activeTask, isAiLoading]);
 
-        const RotateCcwIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-        );
+  useEffect(() => {
+    if (gameState === 'winner') {
+       setTimeout(() => playSound('applause'), 500);
+    }
+  }, [gameState]);
 
-        const XIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        );
+  // --- Game Flow Logic ---
 
-        const CheckIcon = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5"/></svg>
-        );
+  const initSetupNames = (count) => {
+    setTeamCount(count);
+    const initialNames = DEFAULT_TEAMS.slice(0, count).map(t => t.name);
+    setTempTeamNames(initialNames);
+    setGameState('setup-names');
+  };
 
-        // --- 主應用程式 ---
-        const RetroPokeGame = () => {
-            // 遊戲狀態
-            const [pokedStatus, setPokedStatus] = useState(Array(16).fill(false));
-            const [currentQuestion, setCurrentQuestion] = useState(null);
-            const [showResult, setShowResult] = useState(false);
-            const [isCorrect, setIsCorrect] = useState(false);
-            const [feedbackMsg, setFeedbackMsg] = useState('');
+  const finalizeSetup = () => {
+    const newTeams = Array.from({ length: teamCount }, (_, i) => ({
+      id: i,
+      name: tempTeamNames[i] || DEFAULT_TEAMS[i].name,
+      emoji: DEFAULT_TEAMS[i].emoji,
+      colorData: DEFAULT_TEAMS[i],
+      position: 0,
+      score: 0,
+      laps: 0,
+      shield: 0, 
+      cards: { attack: 1, bonus: 1, steal: 1, shield: 1, share: 1 } 
+    }));
+    setTeams(newTeams);
+    setGameState('playing');
+    setCurrentTurnIndex(0);
+  };
 
-            // 16個懷舊題目數據
-            const questions = [
-                {
-                id: 1,
-                category: "生活",
-                title: "廚房的好幫手",
-                question: "以前家家戶戶廚房裡都有一個「耐用幾十年」的電器，煮飯燉湯都靠它，顏色通常是紅色或綠色，請問是？",
-                options: ["大同電鍋", "微波爐", "氣炸鍋"],
-                answer: "大同電鍋",
-                fact: "回憶：民國49年開始生產，留學生出國一定要帶一個，真的很耐用！"
-                },
-                {
-                id: 2,
-                category: "人物",
-                title: "永遠的軍中情人",
-                question: "有一位女歌手，歌聲甜美，唱紅了《甜蜜蜜》、《小城故事》，被稱為「軍中情人」，她是誰？",
-                options: ["鳳飛飛", "鄧麗君", "蔡琴"],
-                answer: "鄧麗君",
-                fact: "回憶：她的歌聲撫慰了無數人的心，連對岸都流行「白天聽老鄧，晚上聽小鄧」。"
-                },
-                {
-                id: 3,
-                category: "電視",
-                title: "一個燈、兩個燈...",
-                question: "台灣電視史上最長壽的歌唱比賽節目，主持人是田邊俱樂部，口號是「一個燈、兩個燈...」，這是哪個節目？",
-                options: ["五燈獎", "群星會", "龍兄虎弟"],
-                answer: "五燈獎",
-                fact: "回憶：五度五關獎五萬！張惠妹也是這個節目出來的喔。"
-                },
-                {
-                id: 4,
-                category: "零食",
-                title: "乖乖聽話",
-                question: "有一種零食，裡面會送小玩具或漫畫書，綠色包裝是奶油椰子口味，工程師常會放在機器上保平安，這是？",
-                options: ["蝦味先", "乖乖", "孔雀香酥脆"],
-                answer: "乖乖",
-                fact: "回憶：以前最期待打開裡面送的小汽車或貼紙！"
-                },
-                {
-                id: 5,
-                category: "體育",
-                title: "棒球的驕傲",
-                question: "民國57年，來自台東的一支少棒隊，用石頭和木棍練球，最後擊敗了日本隊，掀起全台棒球熱，這支球隊是？",
-                options: ["紅葉少棒", "巨人少棒", "金龍少棒"],
-                answer: "紅葉少棒",
-                fact: "回憶：那時候全家半夜守著收音機或是黑白電視看轉播，真的很熱血！"
-                },
-                {
-                id: 6,
-                category: "人物",
-                title: "歌仔戲天王",
-                question: "每天傍晚吃飯時間，電視都要看她的歌仔戲，她反串小生英俊瀟灑，被稱為「歌仔戲皇帝」，她是？",
-                options: ["葉青", "楊麗花", "黃香蓮"],
-                answer: "楊麗花",
-                fact: "回憶：楊麗花歌仔戲是大家吃飯配電視的共同回憶，統帥千軍萬馬超威風。"
-                },
-                {
-                id: 7,
-                category: "交通",
-                title: "耐操好擋",
-                question: "以前送瓦斯、載貨最愛用的擋車，引擎聲很有特色，廣告詞說「耐操好擋拼第一」，這是哪台車？",
-                options: ["偉士牌", "野狼125", "達可達"],
-                answer: "野狼125",
-                fact: "回憶：三陽野狼125，真的是台灣經濟起飛時期的功臣。"
-                },
-                {
-                id: 8,
-                category: "動物",
-                title: "動物園的大明星",
-                question: "從圓山動物園搬家到木柵動物園，所有小朋友最愛的大象爺爺，也是曾參加過二戰的戰象，牠的名字是？",
-                options: ["馬蘭", "林旺", "阿河"],
-                answer: "林旺",
-                fact: "回憶：林旺爺爺活了86歲，是好多代台灣人的共同朋友。"
-                },
-                {
-                id: 9,
-                category: "藥品",
-                title: "綠色的味道",
-                question: "肚子痛、被蚊子叮都要擦，廣告歌唱著「哥哥爸爸真偉大，名譽照我家...」，這是什麼藥？",
-                options: ["萬金油", "綠油精", "白花油"],
-                answer: "綠油精",
-                fact: "回憶：這首歌每個人都會唱！小小一瓶隨身攜帶很方便。"
-                },
-                {
-                id: 10,
-                category: "生活",
-                title: "致富的夢想",
-                question: "以前每個月開獎，大家會去買來對獎，上面印有忠孝節義故事，目的是為了「反共抗俄」，這是什麼？",
-                options: ["愛國獎券", "大家樂", "刮刮樂"],
-                answer: "愛國獎券",
-                fact: "回憶：尤其是尾數對中也有獎，每到開獎日街上都在賣。"
-                },
-                {
-                id: 11,
-                category: "戲劇",
-                title: "遊俠兒",
-                question: "「千山我獨行，不必相送...」鄭少秋主演的這部港劇，當年播出時造成萬人空巷，大家都不出門，它是？",
-                options: ["楚留香", "射鵰英雄傳", "包青天"],
-                answer: "楚留香",
-                fact: "回憶：當時真的很誇張，計程車司機為了看電視都不載客了。"
-                },
-                {
-                id: 12,
-                category: "人物",
-                title: "帽子歌后",
-                question: "這位女歌星每次上台都會戴不一樣的帽子，動作帥氣，唱紅了《掌聲響起》、《祝你幸福》，她是？",
-                options: ["鳳飛飛", "甄妮", "崔苔菁"],
-                answer: "鳳飛飛",
-                fact: "回憶：鳳姐的親和力十足，是台灣人心目中永遠的國民天后。"
-                },
-                {
-                id: 13,
-                category: "電影",
-                title: "梁兄哥",
-                question: "民國52年這部黃梅調電影上映，凌波反串男主角，造成台北變成「瘋人城」，這是哪部電影？",
-                options: ["江山美人", "梁山伯與祝英台", "紅樓夢"],
-                answer: "梁山伯與祝英台",
-                fact: "回憶：很多人看了十幾遍，這首「遠山含笑」大家都會哼。"
-                },
-                {
-                id: 14,
-                category: "飲料",
-                title: "媽媽的味道",
-                question: "以前有一種乳酸飲料，都是「媽媽」騎著腳踏車挨家挨戶送，小小一瓶酸酸甜甜，是什麼？",
-                options: ["養樂多", "津津蘆筍汁", "蜜豆奶"],
-                answer: "養樂多",
-                fact: "回憶：那時候還有蘋果口味的，是小朋友最期待的點心。"
-                },
-                {
-                id: 15,
-                category: "地點",
-                title: "台北的地標",
-                question: "以前台北西門町有八棟連在一起的三層樓商場，買制服、買音響、吃點心都要去那裡，後來拆掉了，那是？",
-                options: ["光華商場", "中華商場", "萬年大樓"],
-                answer: "中華商場",
-                fact: "回憶：那是台北最繁華的地方，有霓虹燈塔，還有好吃的鍋貼。"
-                },
-                {
-                id: 16,
-                category: "戲劇",
-                title: "開封有個...",
-                question: "民國82年這部戲紅遍全台，主題曲是「開封有個...鐵面無私辨忠奸」，這是哪位大人？",
-                options: ["包青天", "劉伯溫", "施公"],
-                answer: "包青天",
-                fact: "回憶：包大人的黑臉和月亮標誌，還有展昭的輕功，大家都愛看。"
-                }
-            ];
+  const handleRollDice = () => {
+    if (isRolling || cardTargetMode || gameState !== 'playing') return;
+    setIsRolling(true);
+    setShowCardMenu(false); // Hide menu when rolling
+    let count = 0;
+    const interval = setInterval(() => {
+      setDiceValue(Math.floor(Math.random() * 6) + 1);
+      playSound('roll');
+      count++;
+      if (count > 10) {
+        clearInterval(interval);
+        const finalValue = Math.floor(Math.random() * 6) + 1;
+        setDiceValue(finalValue);
+        setIsRolling(false);
+        movePlayer(finalValue);
+      }
+    }, 100);
+  };
 
-            // 處理戳洞邏輯
-            const handlePoke = (index) => {
-                if (pokedStatus[index]) return; // 已經戳過了
+  // 處理格子觸發邏輯 (移動結束後)
+  const handleLandOnTile = (tileIndex) => {
+    const landedTile = BOARD_DATA[tileIndex];
+    
+    // 特殊格子：好運 (ID 19) -> 再前進 2 格
+    if (landedTile.id === 19) {
+        // 先顯示好運提示，再移動
+        speakText("好運降臨！再前進兩格！");
+        setTimeout(() => {
+            movePlayer(2); // 遞迴呼叫移動
+        }, 1500);
+    } else {
+        setTimeout(() => openTaskModal(landedTile), 500);
+    }
+  };
 
-                const newStatus = [...pokedStatus];
-                newStatus[index] = true;
-                setPokedStatus(newStatus);
-                
-                // 延遲一下讓動畫跑完再顯示題目
-                setTimeout(() => {
-                setCurrentQuestion(questions.find(q => q.id === index + 1));
-                }, 400);
-            };
+  // 一格一格移動動畫
+  const movePlayer = (totalSteps) => {
+    let currentTeamPos = teams[currentTurnIndex].position;
+    let stepsRemaining = totalSteps;
 
-            // 處理回答邏輯
-            const handleAnswer = (option) => {
-                const correct = option === currentQuestion.answer;
-                setIsCorrect(correct);
-                if (correct) {
-                setFeedbackMsg(`答對了！\n${currentQuestion.fact}`);
-                } else {
-                setFeedbackMsg(`哎呀，差一點點！\n答案是：${currentQuestion.answer}\n${currentQuestion.fact}`);
-                }
-                setShowResult(true);
-            };
+    const animateStep = () => {
+      if (stepsRemaining <= 0) {
+        handleLandOnTile(currentTeamPos); // 移動結束，處理落點
+        return;
+      }
 
-            // 關閉結果視窗
-            const closeResult = () => {
-                setShowResult(false);
-                setCurrentQuestion(null);
-            };
+      stepsRemaining--;
+      currentTeamPos++;
+      let lapBonus = false;
 
-            // 重置遊戲
-            const resetGame = () => {
-                if(window.confirm("確定要重新將所有洞補起來嗎？")) {
-                setPokedStatus(Array(16).fill(false));
-                setCurrentQuestion(null);
-                setShowResult(false);
-                }
-            };
+      // 處理繞圈
+      if (currentTeamPos >= BOARD_DATA.length) {
+        currentTeamPos = 0;
+        lapBonus = true;
+      }
+
+      // 更新狀態
+      setTeams(prev => {
+        const newTeams = [...prev];
+        const team = newTeams[currentTurnIndex];
+        team.position = currentTeamPos;
+        if (lapBonus) {
+           team.laps += 1;
+           team.score += 20;
+        }
+        return newTeams;
+      });
+      
+      playSound('step'); // 播放腳步聲
+      setTimeout(animateStep, 600); // 每 0.6 秒走一格，讓長輩看清楚
+    };
+
+    setGameState('moving'); // 暫時鎖定狀態避免重複操作
+    animateStep();
+  };
+
+  const openTaskModal = (tile) => {
+    setActiveTask(tile);
+    setGameState('modal');
+  };
+
+  const completeTask = (success) => {
+    if (success && activeTask) {
+      setTeams(prev => {
+        const newTeams = [...prev];
+        newTeams[currentTurnIndex].score += activeTask.points;
+        return newTeams;
+      });
+      
+      // 顯示並朗讀鼓勵話語
+      const phrase = ENCOURAGING_PHRASES[Math.floor(Math.random() * ENCOURAGING_PHRASES.length)];
+      setEncouragement(phrase);
+      playSound('win');
+      speakText(`${phrase} 加 ${activeTask.points} 分！`);
+
+      // 2.5秒後關閉鼓勵並換人
+      setTimeout(() => {
+          setEncouragement(null);
+          setActiveTask(null);
+          setGameState('playing');
+          setCurrentTurnIndex((prev) => (prev + 1) % teams.length);
+      }, 2500);
+
+    } else {
+      // 失敗或跳過，直接換人
+      setActiveTask(null);
+      setGameState('playing');
+      setCurrentTurnIndex((prev) => (prev + 1) % teams.length);
+    }
+  };
+
+  // --- Card Logic ---
+
+  const useBonusCard = () => {
+    const team = teams[currentTurnIndex];
+    if (team.cards.bonus <= 0) return;
+    setTeams(prev => {
+      const newTeams = [...prev];
+      newTeams[currentTurnIndex].score += 30;
+      newTeams[currentTurnIndex].cards.bonus -= 1;
+      return newTeams;
+    });
+    playSound('magic');
+    alert(`✨ ${team.name} 使用了「加分卡」！\n自己加 30 分！`);
+    setShowCardMenu(false);
+  };
+
+  const useShieldCard = () => {
+    const team = teams[currentTurnIndex];
+    if (team.cards.shield <= 0) return;
+    setTeams(prev => {
+      const newTeams = [...prev];
+      newTeams[currentTurnIndex].shield += 1;
+      newTeams[currentTurnIndex].cards.shield -= 1;
+      return newTeams;
+    });
+    playSound('magic');
+    alert(`🛡️ ${team.name} 使用了「平安卡」！\n獲得一層防護罩！`);
+    setShowCardMenu(false);
+  };
+
+  const useShareCard = () => {
+    const team = teams[currentTurnIndex];
+    if (team.cards.share <= 0) return;
+    setTeams(prev => {
+      const newTeams = prev.map(t => ({ ...t, score: t.score + 10 }));
+      newTeams[currentTurnIndex].cards.share -= 1;
+      return newTeams;
+    });
+    playSound('win');
+    alert(`🎁 ${team.name} 使用了「同樂卡」！\n大家一起加 10 分！`);
+    setShowCardMenu(false);
+  };
+
+  const startTargetSelection = (mode) => {
+    const team = teams[currentTurnIndex];
+    if (mode === 'attack' && team.cards.attack <= 0) return;
+    if (mode === 'steal' && team.cards.steal <= 0) return;
+    setCardTargetMode(mode);
+    setShowCardMenu(false);
+    const actionName = mode === 'attack' ? '攻擊' : '偷分';
+    alert(`請點擊畫面下方的「隊伍列表」選擇要${actionName}的對象！`);
+  };
+
+  const confirmTarget = (targetTeamId) => {
+    if (!cardTargetMode || targetTeamId === currentTurnIndex) return;
+    setTeams(prev => {
+      const newTeams = [...prev];
+      const target = newTeams[targetTeamId];
+      const attacker = newTeams[currentTurnIndex];
+      
+      if (target.shield > 0) {
+         target.shield -= 1;
+         playSound('shield');
+         alert(`🛡️ ${target.name} 的平安符生效了！\n擋住了這次的${cardTargetMode === 'attack' ? '攻擊' : '偷襲'}！`);
+         if (cardTargetMode === 'attack') attacker.cards.attack -= 1;
+         else attacker.cards.steal -= 1;
+         return newTeams;
+      }
+
+      if (cardTargetMode === 'attack') {
+        attacker.cards.attack -= 1;
+        target.score = Math.max(0, target.score - 10);
+        playSound('zap');
+        alert(`⚡ 攻擊成功！${target.name} 被扣了 10 分！`);
+      } else if (cardTargetMode === 'steal') {
+        attacker.cards.steal -= 1;
+        const stolen = Math.min(10, target.score);
+        target.score -= stolen;
+        attacker.score += stolen;
+        playSound('steal');
+        alert(`🧲 偷分成功！從 ${target.name} 偷走了 ${stolen} 分！`);
+      }
+      return newTeams;
+    });
+    setCardTargetMode(null);
+  };
+
+  const endGame = () => {
+    const sorted = [...teams].sort((a, b) => b.score - a.score);
+    setWinner(sorted[0]);
+    setGameState('winner');
+  };
+
+  const resetGame = () => {
+    setGameState('setup-count');
+    setTeams([]);
+    setWinner(null);
+    setDiceValue(1);
+    setShowCardMenu(false);
+    setCardTargetMode(null);
+  };
+
+  // --- Render Components ---
+
+  // 1. 童趣設定畫面
+  if (gameState.startsWith('setup')) {
+    return (
+      <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center p-4 font-sans text-stone-700 relative overflow-hidden">
+        <div className="absolute top-10 left-10 text-pink-300 opacity-50 transform -rotate-12"><Star size={80} fill="currentColor" /></div>
+        <div className="absolute bottom-10 right-10 text-blue-300 opacity-50 transform rotate-12"><Smile size={80} /></div>
+        
+        <div className="bg-white border-4 border-dashed border-orange-300 p-8 rounded-[3rem] shadow-xl max-w-2xl w-full text-center relative z-10">
+          <div className="flex justify-center mb-4">
+             <div className="bg-orange-100 p-4 rounded-full">
+               <Users size={48} className="text-orange-500" />
+             </div>
+          </div>
+          
+          <h1 className="text-4xl font-bold mb-2 text-orange-600 tracking-wider">長者運動大富翁</h1>
+          <p className="text-gray-500 mb-8 text-xl">建立您的隊伍來開始比賽吧！</p>
+
+          {gameState === 'setup-count' ? (
+            <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+               <p className="text-2xl font-bold mb-4">請問有幾組要玩？</p>
+               <div className="flex justify-center gap-4 flex-wrap">
+                 {[2, 3, 4].map(num => (
+                   <button
+                     key={num}
+                     onClick={() => initSetupNames(num)}
+                     className="bg-blue-100 hover:bg-blue-200 text-blue-700 border-2 border-blue-300 text-3xl font-bold w-24 h-24 rounded-2xl flex items-center justify-center shadow-sm transition-transform hover:scale-110"
+                   >
+                     {num}
+                   </button>
+                 ))}
+               </div>
+            </div>
+          ) : (
+            <div className="space-y-6 animate-in slide-in-from-right duration-500">
+               <p className="text-2xl font-bold mb-4">幫隊伍取個好聽的名字！</p>
+               <div className="grid grid-cols-1 gap-4 max-h-[40vh] overflow-auto px-4">
+                 {Array.from({length: teamCount}).map((_, idx) => (
+                   <div key={idx} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                      <span className="text-3xl">{DEFAULT_TEAMS[idx].emoji}</span>
+                      <input 
+                        type="text" 
+                        value={tempTeamNames[idx]}
+                        onChange={(e) => {
+                          const newNames = [...tempTeamNames];
+                          newNames[idx] = e.target.value;
+                          setTempTeamNames(newNames);
+                        }}
+                        className="flex-1 bg-white border-2 border-gray-300 rounded-lg px-4 py-2 text-2xl font-bold text-gray-700 focus:border-orange-400 focus:outline-none"
+                      />
+                   </div>
+                 ))}
+               </div>
+               <div className="flex gap-4 justify-center mt-6">
+                 <button onClick={() => setGameState('setup-count')} className="px-6 py-3 rounded-xl bg-gray-200 text-gray-600 font-bold hover:bg-gray-300 text-lg">
+                    回上一步
+                 </button>
+                 <button onClick={finalizeSetup} className="px-8 py-3 rounded-xl bg-green-500 text-white font-bold text-xl hover:bg-green-600 shadow-lg flex items-center gap-2">
+                    開始遊戲 <ArrowRight />
+                 </button>
+               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 2. 獲勝畫面
+  if (gameState === 'winner') {
+    return (
+      <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+           {[...Array(20)].map((_, i) => (
+              <div key={i} className="absolute rounded-full opacity-30 animate-pulse" 
+                   style={{
+                     left: `${Math.random()*100}%`, 
+                     top: `${Math.random()*100}%`,
+                     width: `${Math.random()*50 + 20}px`,
+                     height: `${Math.random()*50 + 20}px`,
+                     backgroundColor: ['#FFD700', '#FF69B4', '#00BFFF', '#32CD32'][Math.floor(Math.random()*4)],
+                     animationDelay: `${Math.random()*2}s`
+                   }} 
+              />
+           ))}
+        </div>
+
+        <div className="bg-white p-10 rounded-[3rem] shadow-2xl text-center max-w-2xl w-full border-8 border-yellow-300 relative z-10 animate-in zoom-in duration-500">
+          <Trophy size={100} className="text-yellow-500 mx-auto mb-6 drop-shadow-lg" />
+          <h1 className="text-5xl font-black text-red-500 mb-6">恭喜獲勝！</h1>
+          
+          <div className="bg-yellow-50 rounded-2xl p-6 mb-8 inline-block border-2 border-yellow-200">
+             <div className="text-6xl mb-2">{winner?.emoji}</div>
+             <div className="text-4xl font-bold text-gray-800">{winner?.name}</div>
+             <div className="text-3xl font-bold text-orange-600 mt-2">總分：{winner?.score}</div>
+          </div>
+          
+          <div className="space-y-3 mb-8 text-left max-h-[30vh] overflow-auto">
+            {[...teams].sort((a,b) => b.score - a.score).map((t, idx) => (
+              <div key={t.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                <span className="font-bold text-gray-600 flex items-center gap-2 text-xl">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${idx===0?'bg-yellow-500':'bg-gray-400'}`}>{idx+1}</span>
+                  <span>{t.emoji} {t.name}</span>
+                </span>
+                <span className="font-bold text-gray-800 text-xl">{t.score} 分</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={resetGame}
+            className="bg-green-500 text-white text-3xl py-4 px-12 rounded-full hover:bg-green-600 shadow-xl font-bold transform transition hover:scale-105"
+          >
+            再玩一次
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. 遊戲主畫面
+  const currentTeam = teams[currentTurnIndex];
+
+  return (
+    <div className="min-h-screen bg-[#f0eee5] flex flex-col font-serif text-stone-800 overflow-auto">
+      
+      {/* Top Bar */}
+      <header className="bg-[#e6e2d3] shadow p-2 px-4 flex justify-between items-center z-20 h-[10vh] min-h-[80px] border-b border-stone-300 shrink-0 sticky top-0">
+        <h2 className="text-xl md:text-2xl font-bold text-stone-700 flex items-center gap-2 tracking-wide">
+          <Activity size={24} /> 樂齡運動會
+          <span className="bg-yellow-200 text-yellow-800 text-xs px-2 py-0.5 rounded-full border border-yellow-400 flex items-center gap-1">
+             <Sparkles size={10} /> AI
+          </span>
+        </h2>
+
+        {/* 隊伍列表 */}
+        <div className="flex gap-2 overflow-x-auto pb-1 max-w-[60vw]">
+           {teams.map(team => (
+             <button 
+                key={team.id} 
+                onClick={() => confirmTarget(team.id)}
+                disabled={!cardTargetMode || team.id === currentTurnIndex}
+                className={`
+                  flex flex-col items-center px-3 py-1 rounded border-2 transition-all min-w-[100px] relative
+                  ${team.id === currentTurnIndex ? 'border-yellow-600 bg-yellow-50 scale-105 shadow-md' : 'border-transparent opacity-80 hover:bg-white'}
+                  ${cardTargetMode && team.id !== currentTurnIndex ? 'animate-pulse ring-4 ring-red-400 cursor-pointer bg-red-50 opacity-100' : ''}
+                `}
+             >
+                {team.shield > 0 && (
+                   <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full p-1 shadow-sm z-10" title="有平安符保護中">
+                      <Shield size={12} fill="white" />
+                   </div>
+                )}
+                <div className={`${team.colorData.bg} ${team.colorData.text} px-2 py-0.5 rounded-full text-base font-bold w-full text-center shadow-sm flex items-center justify-center gap-1`}>
+                  <span>{team.emoji}</span>
+                  <span className="truncate max-w-[80px]">{team.name}</span>
+                </div>
+                <div className="text-xl font-bold text-stone-700 mt-0.5">{team.score}</div>
+             </button>
+           ))}
+        </div>
+        <button onClick={endGame} className="bg-stone-500 text-white px-3 py-1 md:px-4 md:py-2 rounded hover:bg-stone-600 text-sm md:text-base font-bold tracking-wide">
+          結束
+        </button>
+      </header>
+
+      {/* Target Mode Overlay Hint */}
+      {cardTargetMode && (
+        <div className="bg-red-500 text-white text-center py-2 font-bold animate-pulse sticky top-[10vh] z-30 shadow-md text-lg">
+           ⚡ 請點擊上方隊伍列表，選擇要 {cardTargetMode === 'attack' ? '攻擊' : '偷分'} 的對手！
+           <button onClick={() => setCardTargetMode(null)} className="ml-4 underline text-sm">取消</button>
+        </div>
+      )}
+
+      {/* Game Board Container */}
+      <div className="flex-1 p-4 flex items-center justify-center relative bg-[#f0eee5] min-h-[600px]">
+        
+        <div className="grid grid-cols-8 grid-rows-5 gap-2 w-full max-w-[95vw] aspect-[16/9] relative">
+          
+          {/* Tiles - 字體加大優化 */}
+          {BOARD_DATA.map((tile, index) => {
+            const pos = TILE_POSITIONS[index];
+            const teamsHere = teams.filter(t => t.position === index);
 
             return (
-                <div className="min-h-screen bg-amber-50 font-sans flex flex-col items-center py-6 px-4">
-                {/* 標題區 */}
-                <header className="text-center mb-6">
-                    <h1 className="text-4xl md:text-5xl font-bold text-red-800 mb-2 tracking-wider drop-shadow-sm border-b-4 border-red-800 pb-2 inline-block">
-                    懷舊時光戳戳樂
-                    </h1>
-                    <p className="text-gray-600 text-lg mt-2 font-medium">
-                    一起回味 1949-1990 的台灣經典故事
-                    </p>
-                </header>
+              <div 
+                key={tile.id} 
+                style={{ gridColumn: pos.col, gridRow: pos.row }}
+                className={`
+                  relative border-2 rounded-lg flex flex-col items-center justify-center text-center shadow-sm transition-all overflow-hidden
+                  ${tile.color} ${tile.border}
+                  ${activeTask?.id === tile.id ? 'ring-4 ring-yellow-500 z-10 scale-105 shadow-xl' : ''}
+                `}
+              >
+                 <span className="absolute top-0.5 left-1 text-xs font-bold text-stone-500 opacity-40">{index + 1}</span>
+                <div className="text-3xl md:text-4xl mb-0 leading-none drop-shadow-sm">{tile.emoji}</div>
+                <div className="font-bold text-base md:text-lg lg:text-xl text-stone-800 leading-tight px-0.5 mt-0.5 w-full break-words">{tile.title}</div>
+                
+                {index < 7 && <ArrowRight className="absolute -right-2.5 text-stone-400 opacity-40" size={20} />}
+                {index >= 7 && index < 10 && <ArrowDown className="absolute -bottom-2.5 text-stone-400 opacity-40" size={20} />}
+                {index >= 10 && index < 18 && <ArrowLeft className="absolute -left-2.5 text-stone-400 opacity-40" size={20} />}
+                {index >= 18 && index < 21 && <ArrowUp className="absolute -top-2.5 text-stone-400 opacity-40" size={20} />}
 
-                {/* 戳戳樂主體 - 模擬傳統盒子 */}
-                <div className="relative bg-red-700 p-4 rounded-xl shadow-2xl border-4 border-yellow-500 max-w-2xl w-full select-none">
-                    {/* 裝飾線條 */}
-                    <div className="absolute top-0 left-0 w-full h-full border-2 border-dashed border-yellow-200 pointer-events-none rounded-lg m-1 opacity-50"></div>
-
-                    <div className="grid grid-cols-4 gap-2 md:gap-4 relative z-10">
-                    {questions.map((q, index) => (
-                        <div 
-                        key={q.id}
-                        onClick={() => handlePoke(index)}
-                        className={`
-                            aspect-square relative rounded-lg cursor-pointer transform transition-all duration-300
-                            ${pokedStatus[index] ? 'bg-gray-900 shadow-inner' : 'bg-red-500 hover:bg-red-400 shadow-[0_4px_0_rgb(153,27,27)] active:shadow-none active:translate-y-1'}
-                            flex items-center justify-center border-2 border-yellow-200
-                        `}
-                        >
-                        {pokedStatus[index] ? (
-                            // 戳破後的狀態
-                            <div className="text-center animate-bounce">
-                            <span className="text-yellow-400 text-2xl md:text-3xl font-bold">
-                                {q.id}
-                            </span>
-                            <div className="text-xs text-gray-400">已兌換</div>
-                            </div>
-                        ) : (
-                            // 未戳破的狀態
-                            <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden group">
-                            {/* 紙張紋理效果 */}
-                            <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.2)_1px,transparent_1px)] bg-[length:10px_10px] opacity-30"></div>
-                            
-                            {/* 中央文字 */}
-                            <div className="bg-white w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                                <span className="text-red-700 font-black text-xl md:text-2xl">戳</span>
-                            </div>
-                            <div className="mt-1 text-yellow-100 text-xs md:text-sm font-medium tracking-widest">
-                                第 {q.id} 格
-                            </div>
-                            </div>
-                        )}
-                        </div>
-                    ))}
-                    </div>
-                </div>
-
-                {/* 底部控制區 */}
-                <div className="mt-8">
-                    <button 
-                    onClick={resetGame}
-                    className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors shadow-lg font-bold text-lg"
+                <div className="absolute bottom-0.5 left-0 right-0 flex justify-center gap-1 px-1 flex-wrap">
+                  {teamsHere.map(team => (
+                    <div 
+                      key={team.id} 
+                      className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-white border-2 border-[#f0eee5] shadow-sm flex items-center justify-center text-xs`}
+                      title={team.name}
                     >
-                    <RotateCcwIcon size={20} />
-                    重新開始
-                    </button>
+                      {team.emoji}
+                    </div>
+                  ))}
                 </div>
-
-                {/* 問題視窗 (Modal) */}
-                {currentQuestion && !showResult && (
-                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl relative">
-                        {/* 卡片頂部 */}
-                        <div className="bg-red-600 p-4 text-white text-center relative">
-                        <div className="absolute top-3 right-3 text-white/50 text-6xl font-black -rotate-12 select-none pointer-events-none">
-                            {currentQuestion.id}
-                        </div>
-                        <span className="inline-block px-3 py-1 bg-yellow-400 text-red-900 rounded-full text-sm font-bold mb-2 shadow-sm">
-                            {currentQuestion.category}
-                        </span>
-                        <h2 className="text-2xl md:text-3xl font-bold tracking-wide">
-                            {currentQuestion.title}
-                        </h2>
-                        </div>
-
-                        {/* 問題內容 */}
-                        <div className="p-6 md:p-8">
-                        <p className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed mb-8">
-                            {currentQuestion.question}
-                        </p>
-
-                        {/* 選項按鈕 */}
-                        <div className="space-y-3">
-                            {currentQuestion.options.map((option, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleAnswer(option)}
-                                className="w-full text-left px-6 py-4 text-lg md:text-xl font-bold text-gray-700 bg-gray-100 hover:bg-blue-100 hover:text-blue-800 rounded-xl transition-all border-2 border-transparent hover:border-blue-300 active:scale-95"
-                            >
-                                {idx + 1}. {option}
-                            </button>
-                            ))}
-                        </div>
-                        </div>
-                    </div>
-                    </div>
-                )}
-
-                {/* 結果視窗 (Modal) */}
-                {showResult && currentQuestion && (
-                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className={`p-6 text-center ${isCorrect ? 'bg-green-100' : 'bg-red-50'}`}>
-                        <div className="mb-4 inline-flex items-center justify-center w-20 h-20 rounded-full bg-white shadow-md">
-                            {isCorrect ? (
-                            <TrophyIcon size={48} className="text-yellow-500" />
-                            ) : (
-                            <XIcon size={48} className="text-red-500" />
-                            )}
-                        </div>
-                        
-                        <h3 className={`text-3xl font-bold mb-2 ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                            {isCorrect ? '答對了！太厲害！' : '哎呀！沒關係'}
-                        </h3>
-                        </div>
-
-                        <div className="p-6 md:p-8">
-                        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r">
-                            <p className="text-xl text-gray-800 font-medium whitespace-pre-line leading-relaxed">
-                            {feedbackMsg}
-                            </p>
-                        </div>
-
-                        <button 
-                            onClick={closeResult}
-                            className="w-full py-4 bg-red-600 text-white rounded-xl text-xl font-bold hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
-                        >
-                            <CheckIcon size={24} />
-                            繼續戳下一個
-                        </button>
-                        </div>
-                    </div>
-                    </div>
-                )}
-                </div>
+              </div>
             );
-        };
+          })}
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<RetroPokeGame />);
-    </script>
-</body>
-</html>
+          {/* Center Control Area */}
+          <div className="col-start-2 col-end-8 row-start-2 row-end-5 bg-[#fffef8] rounded-2xl m-2 border-4 border-double border-stone-300 shadow-inner flex flex-col items-center justify-center p-2 relative">
+            
+            {/* Current Turn Display */}
+            <div className="text-center w-full mb-2">
+              <p className="text-xl text-stone-400 font-bold mb-1">現在輪到</p>
+              <div className={`text-5xl font-bold ${currentTeam.colorData.text} ${currentTeam.colorData.bg} py-4 px-10 rounded-full shadow-lg ring-4 ring-[#f0eee5] flex items-center justify-center gap-3 inline-flex max-w-full overflow-hidden`}>
+                <span>{currentTeam.emoji}</span>
+                <span className="truncate">{currentTeam.name}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-8 mt-6">
+                {/* Dice Button */}
+                <button 
+                  onClick={handleRollDice} 
+                  disabled={isRolling || gameState !== 'playing' || cardTargetMode}
+                  className={`
+                    group relative bg-[#f5f5f0] p-8 rounded-full shadow-lg border-4 border-stone-200 
+                    transition-all transform hover:scale-105 active:scale-95 flex-shrink-0
+                    ${(gameState !== 'playing' || cardTargetMode) ? 'opacity-50 cursor-not-allowed' : 'hover:border-stone-400 cursor-pointer'}
+                  `}
+                >
+                  <div className={`transition-all duration-300 ${isRolling ? 'animate-spin' : 'group-hover:rotate-12 text-stone-800'}`}>
+                      <DiceIcon value={diceValue} />
+                  </div>
+                  <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-stone-700 text-[#f5f5f0] px-4 py-1 rounded text-lg font-bold whitespace-nowrap shadow-md">
+                    擲骰子
+                  </div>
+                </button>
+
+                {/* Card Menu Button */}
+                <div className="relative">
+                   <button
+                     onClick={() => setShowCardMenu(!showCardMenu)}
+                     disabled={isRolling || cardTargetMode}
+                     className="bg-purple-100 hover:bg-purple-200 text-purple-800 p-5 rounded-2xl border-2 border-purple-300 shadow-md flex flex-col items-center gap-1 disabled:opacity-50 min-w-[140px]"
+                   >
+                     <div className="flex gap-2 mb-1">
+                       <span className="font-bold text-2xl">我的道具</span>
+                     </div>
+                     <span className="text-sm bg-white/50 px-3 py-0.5 rounded-full font-bold">
+                       剩餘 {Object.values(currentTeam.cards).reduce((a,b)=>a+b,0)} 張
+                     </span>
+                   </button>
+
+                   {/* Popover Menu */}
+                   {showCardMenu && (
+                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-64 z-30 animate-in zoom-in-95 origin-bottom max-h-[60vh] overflow-auto">
+                        <h4 className="text-center font-bold text-gray-600 mb-2 text-base border-b pb-1">選擇道具卡</h4>
+                        <div className="space-y-2">
+                          <button onClick={() => startTargetSelection('attack')} disabled={currentTeam.cards.attack <= 0}
+                            className="w-full bg-red-50 hover:bg-red-100 text-red-700 p-3 rounded-lg flex items-center justify-between text-base font-bold disabled:opacity-50">
+                             <span className="flex items-center gap-2"><Zap size={20}/> 攻擊卡 <span className="text-xs font-normal">(-10分)</span></span>
+                             <span className="bg-white px-2 rounded-full border text-sm">{currentTeam.cards.attack}</span>
+                          </button>
+                          <button onClick={useBonusCard} disabled={currentTeam.cards.bonus <= 0}
+                            className="w-full bg-yellow-50 hover:bg-yellow-100 text-yellow-700 p-3 rounded-lg flex items-center justify-between text-base font-bold disabled:opacity-50">
+                             <span className="flex items-center gap-2"><Wand2 size={20}/> 加分卡 <span className="text-xs font-normal">(+30分)</span></span>
+                             <span className="bg-white px-2 rounded-full border text-sm">{currentTeam.cards.bonus}</span>
+                          </button>
+                          <button onClick={() => startTargetSelection('steal')} disabled={currentTeam.cards.steal <= 0}
+                            className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg flex items-center justify-between text-base font-bold disabled:opacity-50">
+                             <span className="flex items-center gap-2"><Magnet size={20}/> 偷分卡 <span className="text-xs font-normal">(搶10分)</span></span>
+                             <span className="bg-white px-2 rounded-full border text-sm">{currentTeam.cards.steal}</span>
+                          </button>
+                          <button onClick={useShieldCard} disabled={currentTeam.cards.shield <= 0}
+                            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 p-3 rounded-lg flex items-center justify-between text-base font-bold disabled:opacity-50">
+                             <span className="flex items-center gap-2"><Shield size={20}/> 平安卡 <span className="text-xs font-normal">(防禦)</span></span>
+                             <span className="bg-white px-2 rounded-full border text-sm">{currentTeam.cards.shield}</span>
+                          </button>
+                           <button onClick={useShareCard} disabled={currentTeam.cards.share <= 0}
+                            className="w-full bg-pink-50 hover:bg-pink-100 text-pink-700 p-3 rounded-lg flex items-center justify-between text-base font-bold disabled:opacity-50">
+                             <span className="flex items-center gap-2"><Gift size={20}/> 同樂卡 <span className="text-xs font-normal">(全+10)</span></span>
+                             <span className="bg-white px-2 rounded-full border text-sm">{currentTeam.cards.share}</span>
+                          </button>
+                        </div>
+                        <div className="mt-2 text-center">
+                          <button onClick={() => setShowCardMenu(false)} className="text-sm text-gray-400 underline">關閉</button>
+                        </div>
+                     </div>
+                   )}
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Encouragement Overlay (鼓勵話語彈窗) */}
+      {encouragement && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            <div className="bg-yellow-400 text-red-600 font-black text-6xl md:text-8xl px-12 py-8 rounded-3xl border-8 border-white shadow-2xl animate-bounce transform rotate-3">
+               {encouragement}
+            </div>
+         </div>
+      )}
+
+      {/* Task Modal */}
+      {gameState === 'modal' && activeTask && !encouragement && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#fffef8] rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden transform scale-100 border-8 border-stone-200 animate-in zoom-in-95 duration-300 relative">
+             <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-red-800 shadow-sm border border-red-900 z-10"></div>
+             
+             {isSpeaking && !isAiLoading && (
+               <div className="absolute top-4 right-4 text-emerald-600 animate-pulse flex items-center gap-1">
+                 <Volume2 size={32} />
+                 <span className="text-lg font-bold">朗讀中...</span>
+               </div>
+             )}
+
+            {/* Modal Header */}
+            <div className={`${activeTask.color} p-8 flex items-center justify-center gap-6 border-b-4 ${activeTask.border} border-dashed`}>
+              <div className="text-8xl drop-shadow-md">{activeTask.emoji}</div>
+              <h2 className="text-6xl font-black text-stone-800 tracking-wide">{activeTask.title}</h2>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-10 text-center flex flex-col items-center">
+              
+              <div className="flex gap-6 mb-8 items-center">
+                 <div className="bg-yellow-100 text-yellow-900 px-8 py-3 rounded-full border-2 border-yellow-200 text-3xl font-black shadow-sm inline-block">
+                  獎勵：{activeTask.points} 分
+                 </div>
+                 {activeTask.id !== 0 && activeTask.id !== 19 && (
+                   <button 
+                     onClick={() => generateAiTask(activeTask)}
+                     disabled={isAiLoading}
+                     className="bg-purple-100 text-purple-900 px-6 py-3 rounded-full border-2 border-purple-200 text-2xl font-bold shadow-sm hover:bg-purple-200 flex items-center gap-2 transition-colors disabled:opacity-50"
+                   >
+                     {isAiLoading ? <Loader2 className="animate-spin" /> : <Sparkles size={24} />}
+                     {isAiLoading ? "思考中..." : "AI 隨機換題"}
+                   </button>
+                 )}
+              </div>
+              
+              <p className="text-5xl font-bold text-stone-800 leading-snug mb-12 w-full px-6 font-sans min-h-[5rem]">
+                {activeTask.desc}
+              </p>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-8 w-full px-6">
+                <button 
+                  onClick={() => completeTask(false)}
+                  className="bg-stone-200 hover:bg-stone-300 text-stone-600 text-4xl font-bold py-6 rounded-2xl border-4 border-stone-300 transition-colors"
+                >
+                  跳過
+                </button>
+                <button 
+                  onClick={() => completeTask(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-4xl font-bold py-6 rounded-2xl border-b-8 border-emerald-800 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-4"
+                >
+                  <ThumbsUp size={48} /> 完成任務
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default App;
